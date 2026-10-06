@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ヤーラ・ドミノ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap">
+<style>
+/* 配置: ペンキ塗りの木のテーブルを真上から見た一画面。四辺に席、中央に牌の列。 */
+:root{
+  --wood:#17696b; --wood-dark:#0f4f52; --plank:rgba(0,0,0,.16);
+  --ivory:#f6efdc; --ivory-edge:#c9bd9a; --pip:#1d1a16;
+  --sun:#f2b632; --rojo:#d8432e; --ink:#0c2f30; --paper:#fbf6e6;
+  --display:"Alfa Slab One","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,serif;
+  --body:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:var(--body);color:var(--paper);font-size:15px;line-height:1.5;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 118px,var(--plank) 118px 120px),
+    linear-gradient(180deg,var(--wood),var(--wood-dark));
+  overflow:hidden;
+}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer;touch-action:manipulation}
+body{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+
+/* ---- ロビー ---- */
+#lobby{height:100%;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.card{width:min(440px,100%);background:var(--paper);color:var(--ink);border-radius:6px;padding:28px 26px;
+  box-shadow:0 10px 0 rgba(0,0,0,.25),0 24px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:16px}
+.card h1{font-family:var(--display);font-weight:400;font-size:38px;line-height:1;margin:0;letter-spacing:.02em}
+.card h1 small{display:block;font-family:var(--body);font-size:13px;font-weight:600;letter-spacing:.12em;color:var(--wood);margin-top:8px}
+.card label{font-size:12px;font-weight:700;letter-spacing:.08em;display:flex;flex-direction:column;gap:6px}
+.card input{font:inherit;font-size:16px;padding:10px 12px;border:2px solid var(--ink);border-radius:4px;background:#fff;color:var(--ink);width:100%}
+.btn{border:2px solid var(--ink);background:var(--sun);color:var(--ink);font-weight:700;padding:11px 16px;border-radius:4px;box-shadow:0 3px 0 var(--ink)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.btn.plain{background:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:0}
+.or{border-top:2px dashed rgba(12,47,48,.3);padding-top:16px;display:flex;flex-direction:column;gap:10px}
+#code-out{font-family:var(--display);font-size:44px;letter-spacing:.14em;text-align:center;user-select:all;
+  background:var(--ink);color:var(--sun);border-radius:4px;padding:8px}
+#msg{min-height:1.5em;font-size:14px;margin:0}
+.note{font-size:12px;opacity:.75;margin:0}
+
+/* ---- テーブル ---- */
+#table{height:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;padding:10px}
+.seat{background:rgba(0,0,0,.22);border:2px solid transparent;border-radius:6px;padding:8px 10px;position:relative;
+  display:flex;gap:8px;align-items:center}
+.seat.active{border-color:var(--sun);background:rgba(0,0,0,.36)}
+#seat-top{grid-column:1/-1;justify-content:center;flex-wrap:wrap}
+#seat-left,#seat-right{flex-direction:column;justify-content:center;width:92px;text-align:center}
+#seat-left{grid-column:1;grid-row:2}#seat-right{grid-column:3;grid-row:2}
+.nm{font-weight:700;overflow-wrap:anywhere}
+.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;background:var(--paper);color:var(--ink);border-radius:3px;padding:0 5px;margin-left:6px;vertical-align:middle}
+#seat-left .tag,#seat-right .tag{margin:2px 0 0;display:block}
+.meta{font-size:12px;opacity:.85;font-variant-numeric:tabular-nums}
+.backs{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+.back{width:13px;height:24px;border-radius:2px;background:var(--ivory);box-shadow:inset 0 0 0 2px var(--ivory-edge)}
+.pass{position:absolute;top:-8px;right:-6px;background:var(--rojo);color:#fff;font-weight:700;font-size:13px;padding:2px 10px;border-radius:3px;transform:rotate(4deg);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+
+#board{grid-column:2;grid-row:2;position:relative;border-radius:6px;background:rgba(0,0,0,.12);box-shadow:inset 0 0 0 2px rgba(0,0,0,.18);overflow:hidden}
+#chain{position:absolute;inset:0}
+#chain .tile{position:absolute}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.6;text-align:center;padding:16px}
+.marker{position:absolute;border:2px dashed var(--sun);background:rgba(242,182,50,.25);color:var(--sun);border-radius:6px;font-weight:700;padding:0;font-size:12px;animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{to{background:rgba(242,182,50,.55)}}
+
+#me{grid-column:1/-1;flex-direction:column;align-items:stretch;gap:6px}
+#status{text-align:center;font-weight:700;min-height:1.5em}
+#hand{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:calc(var(--hu)*2)}
+#hand{--hu:clamp(30px,5.4vw,46px)}
+#hand .tile{font-size:var(--hu);border:0;padding:0;cursor:default;opacity:.5}
+#hand .tile.can{opacity:1;cursor:pointer;transform:translateY(-6px)}
+#hand .tile.can:hover{transform:translateY(-11px)}
+#hand .tile.sel{outline:3px solid var(--sun);outline-offset:3px;transform:translateY(-11px)}
+#mymeta{display:flex;justify-content:center;gap:14px;font-size:12px;opacity:.9;flex-wrap:wrap}
+
+/* ---- 牌 ---- */
+.tile{display:flex;background:var(--ivory);border-radius:.13em;
+  box-shadow:inset 0 0 0 .03em var(--ivory-edge),0 .07em 0 var(--ivory-edge),0 .14em .2em rgba(0,0,0,.45)}
+.tile.v{flex-direction:column;width:1em;height:2em}
+.tile.h{width:2em;height:1em}
+.half{flex:1;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:.13em;place-items:center}
+.tile.v .half+.half{border-top:.04em solid var(--ivory-edge)}
+.tile.h .half+.half{border-left:.04em solid var(--ivory-edge)}
+.pip{width:.17em;height:.17em;border-radius:50%;background:var(--pip)}
+#chain .tile{transform:scale(.93)}
+#chain .tile.fresh{box-shadow:0 0 0 .08em var(--sun),0 .14em .2em rgba(0,0,0,.45);animation:drop .25s ease-out}
+@keyframes drop{from{transform:scale(1.25);opacity:.3}}
+
+/* ---- 結果 ---- */
+#result{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,30,31,.72);padding:12px;overflow:auto}
+#result .card{gap:12px;padding:20px;margin:auto}
+#result h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-height:1.15;text-wrap:balance}
+.rrow{display:grid;grid-template-columns:minmax(0,7em) minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border-radius:4px;font-size:14px}
+.rrow.win{background:var(--sun)}
+.rrow .tiles{display:flex;gap:3px;flex-wrap:wrap}
+.rrow .tile{font-size:15px}
+.rrow b{font-variant-numeric:tabular-nums;white-space:nowrap}
+#banner{position:fixed;left:50%;top:10px;transform:translateX(-50%);background:var(--rojo);color:#fff;padding:8px 14px;border-radius:4px;display:flex;gap:10px;align-items:center;z-index:5;font-weight:700;max-width:calc(100% - 32px)}
+
+#bgm{position:fixed;top:10px;right:10px;z-index:6;display:flex;gap:8px;align-items:center;background:rgba(6,30,31,.7);border-radius:6px;padding:6px 8px}
+#bgm .btn{padding:4px 10px;font-size:13px;box-shadow:none;white-space:nowrap}
+#bgm input{width:90px;accent-color:var(--sun)}
+@media (max-width:560px){
+  #bgm input{display:none}
+  #bgm{padding:4px}
+  #seat-top{justify-content:flex-start;padding-right:112px}
+  #seat-left,#seat-right{width:66px;padding:6px 4px;font-size:12px}
+  .back{width:9px;height:17px}
+  #table{padding:6px;gap:6px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="lobby">
+  <div class="card">
+    <h1>DOMINÓ<small>ヤーラ式ドミノ ・ 4人卓</small></h1>
+    <div id="lobby-main" style="display:flex;flex-direction:column;gap:16px">
+      <label>あなたの名前
+        <input id="name" maxlength="12" autocomplete="off" placeholder="例: ダニー">
+      </label>
+      <button class="btn" id="btn-host">部屋を作る（友人を招待）</button>
+      <div class="or">
+        <label>友人から聞いたルームコード
+          <input id="code-in" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="例: K7M2Q">
+        </label>
+        <button class="btn" id="btn-join">部屋に入る</button>
+      </div>
+      <div class="or">
+        <button class="btn plain" id="btn-solo">ひとりで練習する（CPU 3人）</button>
+      </div>
+    </div>
+    <div id="lobby-room" hidden style="display:flex;flex-direction:column;gap:14px">
+      <p style="margin:0">このコードを友人に伝えてください。</p>
+      <div id="code-out"></div>
+      <div class="row">
+        <button class="btn plain" id="btn-copy">コードをコピー</button>
+        <button class="btn" id="btn-start" disabled>ゲーム開始</button>
+      </div>
+      <p class="note">このページを閉じると部屋もなくなります。</p>
+    </div>
+    <p id="msg" role="status"></p>
+  </div>
+</div>
+
+<div id="table" hidden>
+  <div class="seat" id="seat-top"></div>
+  <div class="seat" id="seat-left"></div>
+  <div id="board">
+    <div id="empty"></div>
+    <div id="chain"></div>
+    <div id="result" hidden></div>
+  </div>
+  <div class="seat" id="seat-right"></div>
+  <div class="seat" id="me">
+    <div id="status" role="status"></div>
+    <div id="hand"></div>
+    <div id="mymeta"></div>
+  </div>
+</div>
+<div id="bgm">
+  <button class="btn plain" id="bgm-btn" type="button" aria-pressed="true">♪ BGM オン</button>
+  <input type="range" id="bgm-vol" min="0" max="100" value="40" aria-label="BGMの音量">
+</div>
+<div id="banner" hidden><span id="banner-text"></span><button class="btn plain" id="banner-btn">再接続</button></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+//ENGINE-START
+function allTiles(){const t=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)t.push([a,b]);return t;}
+function tid(t){return t[0]+'-'+t[1];}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function pips(hand){return hand.reduce((s,t)=>s+t[0]+t[1],0);}
+function ends(S){return [S.chain[0].a,S.chain[S.chain.length-1].b];}
+
+// その牌を置ける側。場が空なら 'R' 扱い。両端が同じ数字のときは片側にまとめる。
+function sidesFor(S,t){
+  if(!S.chain.length) return (S.mustOpen&&tid(t)!==S.mustOpen)?[]:['R'];
+  const [l,r]=ends(S),out=[];
+  if(t[0]===l||t[1]===l) out.push('L');
+  if(t[0]===r||t[1]===r) out.push('R');
+  return (l===r&&out.length===2)?['R']:out;
+}
+function legalMoves(S,seat){const m=[];for(const t of S.hands[seat])for(const side of sidesFor(S,t))m.push({t,side});return m;}
+
+function newGame(names){return {names,wins:[0,0,0,0],round:0,seq:0,nextStarter:null,hands:[[],[],[],[]],chain:[],anchor:0,phase:'lobby',winners:[],blocked:false,last:null,mustOpen:null,turn:0};}
+function newRound(S){
+  const deck=shuffle(allTiles());
+  S.hands=[0,1,2,3].map(i=>deck.slice(i*7,i*7+7).sort((x,y)=>(x[0]-y[0])||(x[1]-y[1])));
+  S.chain=[];S.anchor=0;S.phase='playing';S.winners=[];S.blocked=false;S.last=null;S.round++;S.seq++;
+  if(S.nextStarter==null){S.turn=S.hands.findIndex(h=>h.some(t=>t[0]===6&&t[1]===6));S.mustOpen='6-6';}
+  else{S.turn=S.nextStarter;S.mustOpen=null;}
+}
+function finish(S,winners,blocked){S.phase='over';S.winners=winners;S.blocked=blocked;winners.forEach(w=>S.wins[w]++);S.nextStarter=winners[0];}
+function applyPlay(S,seat,id,side){
+  if(S.phase!=='playing'||S.turn!==seat) return false;
+  const h=S.hands[seat],i=h.findIndex(t=>tid(t)===id);
+  if(i<0) return false;
+  const t=h[i],sides=sidesFor(S,t);
+  if(!sides.length) return false;
+  if(!sides.includes(side)) side=sides[0];
+  h.splice(i,1);
+  if(!S.chain.length){S.chain.push({a:t[0],b:t[1]});S.anchor=0;}
+  else if(side==='L'){const l=S.chain[0].a;S.chain.unshift({a:t[0]===l?t[1]:t[0],b:l});S.anchor++;}
+  else{const r=S.chain[S.chain.length-1].b;S.chain.push({a:r,b:t[0]===r?t[1]:t[0]});}
+  S.mustOpen=null;S.seq++;S.last={seat,type:'play',side};
+  if(!h.length){finish(S,[seat],false);return true;}
+  if(![0,1,2,3].some(s=>legalMoves(S,s).length)){
+    const tot=S.hands.map(pips),min=Math.min(...tot);
+    finish(S,[0,1,2,3].filter(s=>tot[s]===min),true);return true;
+  }
+  S.turn=(seat+1)%4;return true;
+}
+function applyPass(S,seat){
+  if(S.phase!=='playing'||S.turn!==seat||legalMoves(S,seat).length) return false;
+  S.last={seat,type:'pass'};S.seq++;S.turn=(seat+1)%4;return true;
+}
+// CPU: 目の大きい牌とダブルを先に捨て、自分の手に残る牌が次も出せる端を残す。
+function cpuChoose(S,seat){
+  const moves=legalMoves(S,seat);if(!moves.length) return null;
+  const h=S.hands[seat];let best=null,bs=-Infinity;
+  for(const m of moves){
+    const t=m.t;let l=t[0],r=t[1];
+    if(S.chain.length){[l,r]=ends(S);if(m.side==='L') l=(t[0]===l?t[1]:t[0]);else r=(t[0]===r?t[1]:t[0]);}
+    const keep=h.filter(x=>x!==t&&(x[0]===l||x[1]===l||x[0]===r||x[1]===r)).length;
+    const sc=t[0]+t[1]+(t[0]===t[1]?3:0)+keep*2.5+Math.random()*0.5;
+    if(sc>bs){bs=sc;best=m;}
+  }
+  return best;
+}
+// 最初の牌を中心に、右の腕は右→下へ、左の腕は左→上へ折り返す。単位は牌の短辺。
+function layoutChain(chain,anchor,W){
+  const rects=[],A=chain[anchor];let rx,lx;
+  if(A.a===A.b){rects.push({x:-0.5,y:-0.5,w:1,h:2,v1:A.a,v2:A.b,vert:true,idx:anchor});rx=0.5;lx=-0.5;}
+  else{rects.push({x:-1,y:0,w:2,h:1,v1:A.a,v2:A.b,vert:false,idx:anchor});rx=1;lx=-1;}
+  function arm(list,x,d,vd){
+    let y=0,afterTurn=false;
+    for(const t of list){
+      const dbl=t.near===t.far&&!afterTurn,need=dbl?3:2;
+      if(d>0?x+need<=W:x-need>=-W){
+        if(dbl){rects.push({x:d>0?x:x-1,y:y-0.5,w:1,h:2,v1:t.near,v2:t.far,vert:true,idx:t.idx});x+=d;}
+        else{rects.push({x:d>0?x:x-2,y,w:2,h:1,v1:d>0?t.near:t.far,v2:d>0?t.far:t.near,vert:false,idx:t.idx});x+=2*d;}
+        afterTurn=false;
+      }else{
+        const cx=d>0?x-1:x;
+        if(vd>0) rects.push({x:cx,y:y+1,w:1,h:2,v1:t.near,v2:t.far,vert:true,idx:t.idx});
+        else rects.push({x:cx,y:y-2,w:1,h:2,v1:t.far,v2:t.near,vert:true,idx:t.idx});
+        y+=3*vd;d=-d;afterTurn=true;
+      }
+    }
+    return {x,y,d};
+  }
+  const endR=arm(chain.slice(anchor+1).map((t,i)=>({near:t.a,far:t.b,idx:anchor+1+i})),rx,1,1);
+  const endL=arm(chain.slice(0,anchor).reverse().map((t,i)=>({near:t.b,far:t.a,idx:anchor-1-i})),lx,-1,-1);
+  return {rects,endR,endL};
+}
+//ENGINE-END
+
+const $=s=>document.querySelector(s);
+const PREFIX='yara-domino-';
+const CPU_NAMES=['','イルマ','ミゲル','オフェリア'];
+let role=null,S=null,view=null,sel=null,peer=null,conn=null,guestHere=false,guestName='',timer=null,roomCode='';
+
+function msg(t){$('#msg').textContent=t;}
+function myName(){return $('#name').value.trim()||(role==='guest'?'ゲスト':'ホスト');}
+function makeCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=a[Math.floor(Math.random()*a.length)];return c;}
+function noPeer(){if(typeof Peer!=='undefined') return false;msg('通信用の部品を読み込めませんでした。インターネット接続を確認してページを開き直してください。');return true;}
+
+/* ---------- ホスト ---------- */
+function isCpu(seat){return seat===1||seat===3||(seat===2&&!guestHere);}
+function viewFor(seat){
+  return {seat,phase:S.phase,hand:S.hands[seat],counts:S.hands.map(h=>h.length),chain:S.chain,anchor:S.anchor,turn:S.turn,
+    last:S.last,seq:S.seq,winners:S.winners,blocked:S.blocked,wins:S.wins,round:S.round,names:S.names,mustOpen:S.mustOpen,
+    reveal:S.phase==='over'?S.hands:null,cpu:[0,1,2,3].map(isCpu),solo:role==='solo'};
+}
+function tick(){
+  view=viewFor(0);render();
+  if(conn&&conn.open&&guestHere) conn.send({t:'view',v:viewFor(2)});
+  clearTimeout(timer);
+  if(S.phase!=='playing') return;
+  const seat=S.turn,can=legalMoves(S,seat).length>0;
+  if(isCpu(seat)) timer=setTimeout(()=>{const m=cpuChoose(S,seat);if(m) applyPlay(S,seat,tid(m.t),m.side);else applyPass(S,seat);tick();},can?1100:1000);
+  else if(!can) timer=setTimeout(()=>{applyPass(S,seat);tick();},1500);
+}
+function handle(seat,a){
+  if(!S||!a) return;
+  if(a.t==='play'){if(applyPlay(S,seat,String(a.id),a.side)) tick();}
+  else if(a.t==='next'&&S.phase==='over'){newRound(S);tick();}
+}
+function act(a){if(role==='guest'){if(conn&&conn.open) conn.send(a);}else handle(0,a);}
+function startGame(){
+  S=newGame([myName(),CPU_NAMES[1],guestHere?guestName:CPU_NAMES[2],CPU_NAMES[3]]);
+  newRound(S);showTable();tick();
+}
+function guestLeft(c){
+  if(conn!==c) return;
+  conn=null;guestHere=false;
+  if(S) tick();else updateRoom();
+}
+function updateRoom(){
+  $('#btn-start').disabled=!guestHere;
+  msg(guestHere?guestName+' が参加しました。':'友人の接続を待っています…');
+}
+function startHost(){
+  if(noPeer()) return;
+  role='host';roomCode=makeCode();msg('部屋を準備しています…');
+  peer=new Peer(PREFIX+roomCode);
+  peer.on('open',()=>{$('#lobby-main').hidden=true;$('#lobby-room').hidden=false;$('#code-out').textContent=roomCode;updateRoom();});
+  peer.on('connection',c=>{
+    if(conn&&conn.open){c.on('open',()=>{c.send({t:'full'});setTimeout(()=>c.close(),500);});return;}
+    conn=c;
+    c.on('data',d=>{
+      if(!d) return;
+      if(d.t==='hello'){
+        guestName=String(d.name||'ゲスト').slice(0,12);guestHere=true;
+        if(S){S.names[2]=guestName;tick();}else updateRoom();
+      }else handle(2,d);
+    });
+    c.on('close',()=>guestLeft(c));
+    c.on('iceStateChanged',st=>{if(st==='failed'||st==='closed'||st==='disconnected') guestLeft(c);});
+  });
+  peer.on('disconnected',()=>{if(peer&&!peer.destroyed) peer.reconnect();});
+  peer.on('error',e=>{
+    if(e.type==='unavailable-id'){peer.destroy();startHost();}
+    else if(!S) msg('接続エラー: '+e.type+'。少し待ってからページを開き直してください。');
+  });
+}
+
+/* ---------- ゲスト ---------- */
+function lost(text){$('#banner-text').textContent=text;$('#banner').hidden=false;}
+function startGuest(code){
+  if(noPeer()) return;
+  role='guest';roomCode=code;msg('接続しています…');
+  if(peer) peer.destroy();
+  peer=new Peer();
+  peer.on('open',()=>{
+    const c=conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
+    c.on('open',()=>{c.send({t:'hello',name:myName()});$('#banner').hidden=true;msg('接続しました。ホストがゲームを始めるのを待っています…');});
+    c.on('data',d=>{
+      if(!d) return;
+      if(d.t==='view'){view=d.v;showTable();render();}
+      else if(d.t==='full') msg('この部屋はすでに2人そろっています。');
+    });
+    const drop=()=>{if(conn===c){conn=null;if(view) lost('ホストとの接続が切れました。');else msg('接続が切れました。もう一度「部屋に入る」を押してください。');}};
+    c.on('close',drop);
+    c.on('iceStateChanged',st=>{if(st==='failed'||st==='closed') drop();});
+  });
+  peer.on('disconnected',()=>{if(peer&&!peer.destroyed) peer.reconnect();});
+  peer.on('error',e=>{
+    const t=e.type==='peer-unavailable'?'そのコードの部屋が見つかりません。コードと、ホストがページを開いたままかを確認してください。':'接続エラー: '+e.type;
+    if(view) lost(t);else msg(t);
+  });
+}
+
+/* ---------- 描画 ---------- */
+const PIPS={0:[],1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function el(tag,cls,text){const e=document.createElement(tag);if(cls) e.className=cls;if(text!=null) e.textContent=text;return e;}
+function halfEl(n,vert){
+  const h=el('span','half'),on=new Set(PIPS[n].map(i=>vert?i:(i%3)*3+Math.floor(i/3)));
+  for(let i=0;i<9;i++) h.appendChild(el('span',on.has(i)?'pip':''));
+  return h;
+}
+function tileEl(v1,v2,vert,tag){
+  const t=el(tag||'div','tile '+(vert?'v':'h'));
+  t.appendChild(halfEl(v1,vert));t.appendChild(halfEl(v2,vert));
+  t.setAttribute('aria-label',v1+' と '+v2+' の牌');
+  return t;
+}
+function showTable(){$('#lobby').hidden=true;$('#table').hidden=false;}
+function myTurn(){return view.phase==='playing'&&view.turn===view.seat;}
+
+function renderSeat(node,seat){
+  const v=view;node.textContent='';
+  node.classList.toggle('active',v.phase==='playing'&&v.turn===seat);
+  const nm=el('div','nm',v.names[seat]);
+  if(v.cpu[seat]) nm.appendChild(el('span','tag',seat===2&&!v.solo?'切断中・CPU代打ち':'CPU'));
+  node.appendChild(nm);
+  const backs=el('div','backs');
+  for(let i=0;i<v.counts[seat];i++) backs.appendChild(el('span','back'));
+  node.appendChild(backs);
+  node.appendChild(el('div','meta','残り '+v.counts[seat]+' 枚 ・ '+v.wins[seat]+' 勝'));
+  if(v.last&&v.last.type==='pass'&&v.last.seat===seat) node.appendChild(el('div','pass','パス'));
+}
+
+function renderBoard(){
+  const v=view,B=$('#board'),layer=$('#chain');layer.textContent='';
+  const empty=$('#empty');empty.hidden=v.chain.length>0;
+  if(!v.chain.length){empty.textContent='第 '+v.round+' ラウンド。'+(v.mustOpen?'[6|6] を持っている人から始めます。':v.names[v.turn]+' から始めます。');return;}
+  const bw=B.clientWidth-28,bh=B.clientHeight-28;
+  const W=Math.max(6,Math.min(11,Math.floor(bw/72)));
+  const L=layoutChain(v.chain,v.anchor,W);
+  const marks=[];
+  if(sel&&myTurn()){
+    const t=v.hand.find(x=>tid(x)===sel);
+    if(t) for(const side of sidesFor(v,t)){const e=side==='L'?L.endL:L.endR;marks.push({x:e.d>0?e.x:e.x-1,y:e.y,w:1,h:1,side});}
+  }
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const r of L.rects.concat(marks)){x0=Math.min(x0,r.x);y0=Math.min(y0,r.y);x1=Math.max(x1,r.x+r.w);y1=Math.max(y1,r.y+r.h);}
+  const u=Math.max(8,Math.min(40,bw/(x1-x0),bh/(y1-y0)));
+  const ox=(B.clientWidth-(x1-x0)*u)/2-x0*u,oy=(B.clientHeight-(y1-y0)*u)/2-y0*u;
+  const fresh=v.last&&v.last.type==='play'?(v.last.side==='L'?0:v.chain.length-1):-1;
+  for(const r of L.rects){
+    const t=tileEl(r.v1,r.v2,r.vert);
+    t.style.fontSize=u+'px';t.style.left=(ox+r.x*u)+'px';t.style.top=(oy+r.y*u)+'px';
+    if(r.idx===fresh) t.classList.add('fresh');
+    layer.appendChild(t);
+  }
+  for(const m of marks){
+    const b=el('button','marker','ここ');
+    b.style.left=(ox+m.x*u)+'px';b.style.top=(oy+m.y*u)+'px';b.style.width=u+'px';b.style.height=u+'px';
+    b.setAttribute('aria-label',(m.side==='L'?'左':'右')+'の端に置く');
+    b.onclick=()=>{const id=sel;sel=null;act({t:'play',id,side:m.side});};
+    layer.appendChild(b);
+  }
+}
+
+function renderHand(){
+  const v=view,hand=$('#hand');hand.textContent='';
+  for(const t of v.hand){
+    const b=tileEl(t[0],t[1],true,'button'),id=tid(t);
+    b.type='button';
+    const sides=myTurn()?sidesFor(v,t):[];
+    if(sides.length){
+      b.classList.add('can');
+      b.onclick=()=>{
+        if(sides.length===1){sel=null;act({t:'play',id,side:sides[0]});}
+        else{sel=sel===id?null:id;render();}
+      };
+    }else b.disabled=true;
+    if(sel===id) b.classList.add('sel');
+    hand.appendChild(b);
+  }
+  const meta=$('#mymeta');meta.textContent='';
+  meta.appendChild(el('span','',v.names[v.seat]+'（あなた）'));
+  meta.appendChild(el('span','','手持ちの目の合計 '+pips(v.hand)));
+  meta.appendChild(el('span','',v.wins[v.seat]+' 勝'));
+  $('#me').classList.toggle('active',myTurn());
+  const old=$('#me .pass');if(old) old.remove();
+  if(v.last&&v.last.type==='pass'&&v.last.seat===v.seat) $('#me').appendChild(el('div','pass','パス'));
+}
+
+function renderStatus(){
+  const v=view;let s='';
+  if(v.phase==='over') s='ラウンド終了';
+  else if(myTurn()){
+    const can=v.hand.some(t=>sidesFor(v,t).length);
+    if(!can) s='出せる牌がありません。パスします…';
+    else if(sel) s='光っている場所から、置く端を選んでください。';
+    else if(v.mustOpen) s='あなたの番です。最初は [6|6] を出します。';
+    else s='あなたの番です。出す牌を選んでください。';
+  }else s=v.names[v.turn]+' の番です。';
+  $('#status').textContent=s;
+}
+
+function renderResult(){
+  const v=view,box=$('#result');box.hidden=v.phase!=='over';
+  if(v.phase!=='over'){box.textContent='';return;}
+  box.textContent='';
+  const card=el('div','card');
+  const who=v.winners.map(s=>s===v.seat?'あなた':v.names[s]).join(' と ');
+  card.appendChild(el('h2','',who+(v.winners.length>1?' の引き分け':' の勝ち')));
+  card.appendChild(el('p','note',v.blocked?'誰も出せなくなりました。残った目の合計が一番少ない人の勝ちです。':'手持ちの牌をすべて出し切りました。'));
+  for(let s=0;s<4;s++){
+    const row=el('div','rrow'+(v.winners.includes(s)?' win':''));
+    row.appendChild(el('span','nm',s===v.seat?'あなた':v.names[s]));
+    const ts=el('span','tiles');
+    for(const t of v.reveal[s]) ts.appendChild(tileEl(t[0],t[1],false));
+    row.appendChild(ts);
+    row.appendChild(el('b','',pips(v.reveal[s])+' 点'));
+    card.appendChild(row);
+  }
+  const b=el('button','btn','次のラウンドへ');
+  b.onclick=()=>act({t:'next'});
+  card.appendChild(b);
+  box.appendChild(card);
+}
+
+let lastSeq=-1;
+function render(){
+  if(!view) return;
+  if(view.seq!==lastSeq){lastSeq=view.seq;sel=null;}
+  renderSeat($('#seat-right'),(view.seat+1)%4);
+  renderSeat($('#seat-top'),(view.seat+2)%4);
+  renderSeat($('#seat-left'),(view.seat+3)%4);
+  renderBoard();renderHand();renderStatus();renderResult();
+}
+
+/* ---------- BGM ----------
+   ヤーラの路上バンドを意識した、長調で陽気なキューバのソンをその場で合成する。
+   コンガ、ウッドベース、横笛の3人編成。音源ファイルは使わない。 */
+const BGM=(()=>{
+  const STEP=0.152; // 8分音符1つの長さ（秒）
+  const CH={
+    C:{b:48,f:43,t:[55,60,64]},F:{b:41,f:48,t:[57,60,65]},G7:{b:43,f:50,t:[55,59,65]}
+  };
+  const PROG=['C','F','G7','G7','C','F','G7','C','F','F','C','C','G7','G7','C','C'];
+  const RHYTHMS=[[0,3,6,8,11,14,16,19,22],[0,1,2,3,4,6,8,11,14,16,17,18,19,20,22,24],[2,3,6,10,12,14,18,19,22],
+    [0,2,4,6,7,10,16,18,20,22],[4,5,6,7,8,11,14,16,19,20,24,25,26,27,28],[4,6,8,11,14,16,19,20]];
+  const SCALE=[0,2,4,5,7,9,11],LO=76,HI=93;
+  let ctx=null,master=null,bus=null,noiseBuf=null,timerId=null,nextT=0,step=0,vol=0.4,mel=[],lastNote=79;
+  const mtof=m=>440*Math.pow(2,(m-69)/12);
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  const chordAt=s=>PROG[Math.floor(s/8)%PROG.length];
+  const late=()=>Math.random()*0.012;
+
+  function thud(t,f0,f1,g,dur){
+    const o=ctx.createOscillator(),a=ctx.createGain();
+    o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur*0.5);
+    a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+0.004);a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(a);a.connect(bus);o.start(t);o.stop(t+dur+0.05);
+  }
+  function skin(t,freq,q,g,dur){
+    const s=ctx.createBufferSource(),f=ctx.createBiquadFilter(),n=ctx.createGain();
+    s.buffer=noiseBuf;f.type='bandpass';f.frequency.value=freq;f.Q.value=q;
+    n.gain.setValueAtTime(g,t);n.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(f);f.connect(n);n.connect(bus);s.start(t,Math.random()*0.5);s.stop(t+dur+0.03);
+  }
+  // コンガ: open=開いた音, low=低いほうの太鼓, slap=平手打ち, touch=手のひらで軽く押さえる音
+  function conga(t,kind,g){
+    if(kind==='open'){thud(t,205,185,g,0.32);skin(t,900,1,g*0.35,0.02);}
+    else if(kind==='low'){thud(t,150,135,g,0.38);skin(t,700,1,g*0.3,0.02);}
+    else if(kind==='slap'){skin(t,2100,1.5,g,0.06);thud(t,340,300,g*0.4,0.06);}
+    else{thud(t,125,110,g,0.07);skin(t,450,0.8,g*0.5,0.03);}
+  }
+  // ウッドベースの指弾き。小さなスピーカーでも聞こえるよう1オクターブ上を重ねる。
+  function bass(t,m,g){
+    const f=mtof(m-12),a=ctx.createGain(),lp=ctx.createBiquadFilter();
+    lp.type='lowpass';lp.frequency.value=700;
+    a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+0.012);a.gain.exponentialRampToValueAtTime(0.0001,t+0.6);
+    lp.connect(a);a.connect(bus);
+    [['triangle',1,1],['sine',2,0.5]].forEach(([type,k,og])=>{
+      const o=ctx.createOscillator(),x=ctx.createGain();
+      o.type=type;o.frequency.value=f*k;x.gain.value=og;
+      o.connect(x);x.connect(lp);o.start(t);o.stop(t+0.65);
+    });
+  }
+  // 横笛。吹き始めに息の音を強く入れ、長い音には遅れてビブラートをかける。
+  function flute(t,m,dur){
+    const f=mtof(m),a=ctx.createGain(),end=t+dur;
+    a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(0.1,t+0.06);
+    a.gain.setValueAtTime(0.1,Math.max(t+0.07,end-0.1));a.gain.exponentialRampToValueAtTime(0.0001,end+0.04);
+    a.connect(bus);
+    const lfo=ctx.createOscillator(),lg=ctx.createGain();
+    lfo.frequency.value=5;lg.gain.setValueAtTime(0,t);lg.gain.linearRampToValueAtTime(dur>0.35?11:0,t+0.35);
+    lfo.connect(lg);lfo.start(t);lfo.stop(end+0.1);
+    [[1,1],[2,0.28],[3,0.1]].forEach(([k,g])=>{
+      const o=ctx.createOscillator(),og=ctx.createGain();
+      o.frequency.value=f*k;og.gain.value=g;lg.connect(o.detune);
+      o.connect(og);og.connect(a);o.start(t);o.stop(end+0.1);
+    });
+    const s=ctx.createBufferSource(),bf=ctx.createBiquadFilter(),bg=ctx.createGain();
+    s.buffer=noiseBuf;s.loop=true;bf.type='bandpass';bf.frequency.value=f*2;bf.Q.value=0.8;
+    bg.gain.setValueAtTime(0.55,t);bg.gain.exponentialRampToValueAtTime(0.16,t+0.07);
+    s.connect(bf);bf.connect(bg);bg.connect(a);s.start(t,Math.random()*0.5);s.stop(end+0.1);
+  }
+  function snap(n,pcs){
+    for(let d=0;d<7;d++){if(pcs.includes((n+d)%12)) return n+d;if(pcs.includes((n-d+120)%12)) return n-d;}
+    return n;
+  }
+  // 笛の旋律を4小節ぶん作る。強拍と最後の音はコードの構成音に寄せ、ときどき丸ごと休む。
+  function genMelody(s0){
+    mel=[];
+    if(Math.random()<0.15) return;
+    const rh=pick(RHYTHMS);let n=lastNote;
+    rh.forEach((st,i)=>{
+      const c=CH[chordAt(s0+st)];
+      const strong=i===0||i===rh.length-1||st%8===0;
+      n+=pick([-4,-3,-2,-1,1,2,3,4]);
+      while(n>HI) n-=7;while(n<LO) n+=7;
+      n=snap(n,strong?c.t.map(x=>x%12):SCALE);
+      const len=i===rh.length-1?6:Math.min(6,rh[i+1]-st);
+      mel.push({st,n,dur:len*STEP*(len===1?0.7:0.9),grace:strong&&Math.random()<0.3});
+    });
+    lastNote=n;
+  }
+  function sched(s,t){
+    const i8=s%8,bar=Math.floor(s/8),c=CH[chordAt(s)],nx=CH[chordAt(s+8)];
+    if(s%32===0) genMelody(s);
+    // ベースは裏拍で次のコードを先取りする（トゥンバオ）。
+    if(i8===0&&bar%4===0) bass(t,c.b,0.5);
+    if(i8===3) bass(t,c.f,0.5);
+    if(i8===6) bass(t,nx.b,0.6);
+    // コンガの基本パターン: 2拍目に高い平手打ち、4拍目に開いた音を2つ。
+    if(i8===2) conga(t+late(),'slap',0.3);
+    else if(i8===6||i8===7) conga(t+late(),'open',i8===6?0.38:0.3);
+    else if(bar%2===1&&i8===4) conga(t+late(),'low',0.35);
+    else conga(t+late(),'touch',i8%2?0.08:0.12);
+    for(const e of mel) if(e.st===s%32){
+      if(e.grace){flute(t,e.n+2,0.05);flute(t+0.07,e.n,e.dur-0.07);}
+      else flute(t,e.n,e.dur);
+    }
+  }
+  function pump(){while(nextT<ctx.currentTime+1.2){sched(step,nextT);step++;nextT+=STEP;}}
+  function init(){
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return false;
+    ctx=new AC();
+    const sr=ctx.sampleRate,comp=ctx.createDynamicsCompressor();
+    master=ctx.createGain();master.gain.value=0;master.connect(comp);comp.connect(ctx.destination);
+    noiseBuf=ctx.createBuffer(1,sr,sr);
+    const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    // 小さな部屋の響き
+    const len=Math.floor(sr*1.4),imp=ctx.createBuffer(2,len,sr);
+    for(let ch=0;ch<2;ch++){const x=imp.getChannelData(ch);for(let i=0;i<len;i++) x[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);}
+    const rev=ctx.createConvolver(),wet=ctx.createGain();
+    rev.buffer=imp;wet.gain.value=0.22;
+    bus=ctx.createGain();bus.connect(master);bus.connect(rev);rev.connect(wet);wet.connect(master);
+    return true;
+  }
+  return {
+    start(){
+      if(!ctx&&!init()) return;
+      ctx.resume();
+      master.gain.setTargetAtTime(vol,ctx.currentTime,0.3);
+      if(timerId) return;
+      if(nextT<ctx.currentTime+0.1) nextT=ctx.currentTime+0.1;
+      timerId=setInterval(pump,200);pump();
+    },
+    stop(){
+      if(!ctx||!timerId) return;
+      clearInterval(timerId);timerId=null;
+      master.gain.setTargetAtTime(0,ctx.currentTime,0.05);
+    },
+    setVolume(v){vol=v;if(ctx&&timerId) master.gain.setTargetAtTime(vol,ctx.currentTime,0.05);}
+  };
+})();
+let bgmOn=true;
+function bgmLabel(){$('#bgm-btn').textContent='♪ BGM '+(bgmOn?'オン':'オフ');$('#bgm-btn').setAttribute('aria-pressed',String(bgmOn));}
+try{
+  bgmOn=localStorage.getItem('domino-bgm')!=='off';
+  const sv=localStorage.getItem('domino-bgm-vol');if(sv!=null) $('#bgm-vol').value=sv;
+}catch(e){}
+bgmLabel();BGM.setVolume($('#bgm-vol').value/100);
+$('#bgm-btn').onclick=()=>{
+  bgmOn=!bgmOn;bgmLabel();
+  if(bgmOn) BGM.start();else BGM.stop();
+  try{localStorage.setItem('domino-bgm',bgmOn?'on':'off');}catch(e){}
+};
+$('#bgm-vol').oninput=e=>{
+  BGM.setVolume(e.target.value/100);
+  try{localStorage.setItem('domino-bgm-vol',e.target.value);}catch(err){}
+};
+// ブラウザは操作があるまで音を出せないので、最初のクリックかキー入力で鳴らし始める。
+let bgmTouched=false;
+function bgmFirstTouch(){
+  bgmTouched=true;
+  document.removeEventListener('pointerdown',bgmFirstTouch);document.removeEventListener('keydown',bgmFirstTouch);
+  if(bgmOn) BGM.start();
+}
+// スマホでは別のアプリから戻ると音が止まったままになるので、戻ってきたら鳴らし直す。
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&bgmOn&&bgmTouched) BGM.start();});
+document.addEventListener('pointerdown',bgmFirstTouch);
+document.addEventListener('keydown',bgmFirstTouch);
+
+/* ---------- ロビーの操作 ---------- */
+$('#btn-host').onclick=startHost;
+$('#btn-join').onclick=()=>{
+  const code=$('#code-in').value.trim().toUpperCase();
+  if(code.length!==5){msg('ルームコードは5文字です。');return;}
+  startGuest(code);
+};
+$('#btn-solo').onclick=()=>{role='solo';startGame();};
+$('#btn-start').onclick=startGame;
+$('#btn-copy').onclick=()=>{
+  const done=()=>msg('コードをコピーしました。');
+  if(navigator.clipboard) navigator.clipboard.writeText(roomCode).then(done,()=>msg('コピーできませんでした。コードを直接伝えてください。'));
+  else msg('コピーできませんでした。コードを直接伝えてください。');
+};
+$('#banner-btn').onclick=()=>{$('#banner-text').textContent='再接続しています…';startGuest(roomCode);};
+window.addEventListener('resize',render);
+try{$('#name').value=localStorage.getItem('domino-name')||'';}catch(e){}
+$('#name').addEventListener('change',()=>{try{localStorage.setItem('domino-name',$('#name').value.trim());}catch(e){}});
+</script>
+</body>
+</html>
