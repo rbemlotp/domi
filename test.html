@@ -74,6 +74,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-of
 
 #me{grid-column:1/-1;flex-direction:column;align-items:stretch;gap:6px}
 #status{text-align:center;font-weight:700;min-height:1.5em}
+#status .btn{margin-left:10px;padding:5px 16px}
 #hand{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:calc(var(--hu)*2)}
 #hand{--hu:clamp(30px,5.4vw,46px)}
 #hand .tile{font-size:var(--hu);border:0;padding:0;cursor:default;opacity:.5}
@@ -92,8 +93,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-of
 .tile.h .half+.half{border-left:.04em solid var(--ivory-edge)}
 .pip{width:.17em;height:.17em;border-radius:50%;background:var(--pip)}
 #chain .tile{transform:scale(.93)}
-#chain .tile.fresh{box-shadow:0 0 0 .08em var(--sun),0 .14em .2em rgba(0,0,0,.45);animation:drop .25s ease-out}
-@keyframes drop{from{transform:scale(1.25);opacity:.3}}
+#chain .tile.fresh{box-shadow:0 0 0 .08em var(--sun),0 .14em .2em rgba(0,0,0,.45)}
 
 /* ---- 結果 ---- */
 #result{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,30,31,.72);padding:12px;overflow:auto}
@@ -288,13 +288,14 @@ function tick(){
   if(conn&&conn.open&&guestHere) conn.send({t:'view',v:viewFor(2)});
   clearTimeout(timer);
   if(S.phase!=='playing') return;
-  const seat=S.turn,can=legalMoves(S,seat).length>0;
-  if(isCpu(seat)) timer=setTimeout(()=>{const m=cpuChoose(S,seat);if(m) applyPlay(S,seat,tid(m.t),m.side);else applyPass(S,seat);tick();},can?1100:1000);
-  else if(!can) timer=setTimeout(()=>{applyPass(S,seat);tick();},1500);
+  const seat=S.turn;
+  // CPU は出すときもパスのときも 3〜7 秒考える。人間は出せなくても自動では進めず、パスボタンを待つ。
+  if(isCpu(seat)) timer=setTimeout(()=>{const m=cpuChoose(S,seat);if(m) applyPlay(S,seat,tid(m.t),m.side);else applyPass(S,seat);tick();},3000+Math.random()*4000);
 }
 function handle(seat,a){
   if(!S||!a) return;
   if(a.t==='play'){if(applyPlay(S,seat,String(a.id),a.side)) tick();}
+  else if(a.t==='pass'){if(applyPass(S,seat)) tick();}
   else if(a.t==='next'&&S.phase==='over'){newRound(S);tick();}
 }
 function act(a){if(role==='guest'){if(conn&&conn.open) conn.send(a);}else handle(0,a);}
@@ -392,7 +393,7 @@ function renderSeat(node,seat){
   if(v.last&&v.last.type==='pass'&&v.last.seat===seat) node.appendChild(el('div','pass','パス'));
 }
 
-function renderBoard(){
+function renderBoard(isNew){
   const v=view,B=$('#board'),layer=$('#chain');layer.textContent='';
   const empty=$('#empty');empty.hidden=v.chain.length>0;
   if(!v.chain.length){empty.textContent='第 '+v.round+' ラウンド。'+(v.mustOpen?'[6|6] を持っている人から始めます。':v.names[v.turn]+' から始めます。');return;}
@@ -412,8 +413,22 @@ function renderBoard(){
   for(const r of L.rects){
     const t=tileEl(r.v1,r.v2,r.vert);
     t.style.fontSize=u+'px';t.style.left=(ox+r.x*u)+'px';t.style.top=(oy+r.y*u)+'px';
-    if(r.idx===fresh) t.classList.add('fresh');
     layer.appendChild(t);
+    if(r.idx===fresh){
+      t.classList.add('fresh');
+      if(isNew&&t.animate&&!matchMedia('(prefers-reduced-motion:reduce)').matches){
+        // 出した人の席の側（自分から見て 下・右・上・左）の盤の外から、置き場所まで動かす。
+        const rel=(v.last.seat-v.seat+4)%4,bw2=B.clientWidth,bh2=B.clientHeight;
+        const from=[[bw2/2,bh2+3*u],[bw2+3*u,bh2/2],[bw2/2,-3*u],[-3*u,bh2/2]][rel];
+        const dx=from[0]-(ox+(r.x+r.w/2)*u),dy=from[1]-(oy+(r.y+r.h/2)*u);
+        t.style.zIndex=2;
+        t.animate([
+          {transform:'translate('+dx+'px,'+dy+'px) scale(1.5) rotate('+(rel%2?-25:25)+'deg)',opacity:0.6},
+          {transform:'translate(0,0) scale(1.08) rotate(0deg)',opacity:1,offset:0.85},
+          {transform:'translate(0,0) scale(.93) rotate(0deg)',opacity:1}
+        ],{duration:750,easing:'cubic-bezier(.2,.75,.25,1)'});
+      }
+    }
   }
   for(const m of marks){
     const b=el('button','marker','ここ');
@@ -451,20 +466,27 @@ function renderHand(){
 
 function renderStatus(){
   const v=view;let s='';
-  if(v.phase==='over') s='ラウンド終了';
+  let needPass=false;
+  if(v.phase==='over') s=v.blocked?'誰も出せなくなりました。':'';
   else if(myTurn()){
     const can=v.hand.some(t=>sidesFor(v,t).length);
-    if(!can) s='出せる牌がありません。パスします…';
+    if(!can){s='出せる牌がありません。';needPass=true;}
     else if(sel) s='光っている場所から、置く端を選んでください。';
     else if(v.mustOpen) s='あなたの番です。最初は [6|6] を出します。';
     else s='あなたの番です。出す牌を選んでください。';
   }else s=v.names[v.turn]+' の番です。';
   $('#status').textContent=s;
+  if(needPass){
+    const b=el('button','btn','パスする');
+    b.type='button';b.onclick=()=>{b.disabled=true;act({t:'pass'});};
+    $('#status').appendChild(b);
+  }
 }
 
 function renderResult(){
-  const v=view,box=$('#result');box.hidden=v.phase!=='over';
-  if(v.phase!=='over'){box.textContent='';return;}
+  const v=view,box=$('#result'),show=v.phase==='over'&&Date.now()>=resultAt;
+  box.hidden=!show;
+  if(!show){box.textContent='';return;}
   box.textContent='';
   const card=el('div','card');
   const who=v.winners.map(s=>s===v.seat?'あなた':v.names[s]).join(' と ');
@@ -485,14 +507,19 @@ function renderResult(){
   box.appendChild(card);
 }
 
-let lastSeq=-1;
+const RESULT_WAIT=3000; // 最後の牌を見せてから結果を出すまでの時間（ミリ秒）
+let lastSeq=-1,resultAt=0;
 function render(){
   if(!view) return;
-  if(view.seq!==lastSeq){lastSeq=view.seq;sel=null;}
+  const isNew=view.seq!==lastSeq;
+  if(isNew){
+    lastSeq=view.seq;sel=null;
+    if(view.phase==='over'){resultAt=Date.now()+RESULT_WAIT;setTimeout(render,RESULT_WAIT+30);}
+  }
   renderSeat($('#seat-right'),(view.seat+1)%4);
   renderSeat($('#seat-top'),(view.seat+2)%4);
   renderSeat($('#seat-left'),(view.seat+3)%4);
-  renderBoard();renderHand();renderStatus();renderResult();
+  renderBoard(isNew);renderHand();renderStatus();renderResult();
 }
 
 /* ---------- BGM ----------
