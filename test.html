@@ -650,17 +650,13 @@ $('#bgm-vol').oninput=e=>{
   BGM.setVolume(e.target.value/100);
   try{localStorage.setItem('domino-bgm-vol',e.target.value);}catch(err){}
 };
-// ブラウザは操作があるまで音を出せないので、最初のクリックかキー入力で鳴らし始める。
+// ブラウザは操作があるまで音を出せない。iPhone は指を離した瞬間（touchend / click）しか「操作」と認めないので、
+// 押した瞬間ではなくそちらで鳴らし始める。1回で鳴らないこともあるため、操作のたびに呼ぶ（鳴っていれば何も起きない）。
 let bgmTouched=false;
-function bgmFirstTouch(){
-  bgmTouched=true;
-  document.removeEventListener('pointerdown',bgmFirstTouch);document.removeEventListener('keydown',bgmFirstTouch);
-  if(bgmOn) BGM.start();
-}
+function bgmKick(){bgmTouched=true;if(bgmOn) BGM.start();}
+['click','touchend','keydown'].forEach(ev=>document.addEventListener(ev,bgmKick));
 // スマホでは別のアプリから戻ると音が止まったままになるので、戻ってきたら鳴らし直す。
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&bgmOn&&bgmTouched) BGM.start();});
-document.addEventListener('pointerdown',bgmFirstTouch);
-document.addEventListener('keydown',bgmFirstTouch);
 
 /* ---------- ロビーの操作 ---------- */
 $('#btn-host').onclick=startHost;
